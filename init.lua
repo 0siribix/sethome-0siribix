@@ -27,14 +27,17 @@ loadhomes()
 sethome.set = function(name, pos)
 	local player = minetest.get_player_by_name(name)
 	if not player or not pos then
-		return false
+		return false, S("Player not found!")
+	end
+	if minetest.is_protected(pos, name) then
+		return false, S("Cannot set home to protected area!")
 	end
 	local player_meta = player:get_meta()
 	player_meta:set_string("sethome:home", minetest.pos_to_string(pos))
 
 	-- remove `name` from the old storage file
 	if not homepos[name] then
-		return true
+		return true, S("Home set!")
 	end
 	local data = {}
 	local output = io.open(homes_file, "w")
@@ -71,10 +74,13 @@ sethome.go = function(name)
 	local pos = sethome.get(name)
 	local player = minetest.get_player_by_name(name)
 	if player and pos then
+		if minetest.is_protected(pos, name) then
+			return false, S("Cannot teleport to protected area!")
+		end
 		player:set_pos(pos)
-		return true
+		return true, S("Teleported to home!")
 	end
-	return false
+	return false, S("Set a home using /sethome")
 end
 
 minetest.register_privilege("home", {
@@ -86,10 +92,7 @@ minetest.register_chatcommand("home", {
 	description = S("Teleport you to your home point"),
 	privs = {home = true},
 	func = function(name)
-		if sethome.go(name) then
-			return true, S("Teleported to home!")
-		end
-		return false, S("Set a home using /sethome")
+		return sethome.go(name)
 	end,
 })
 
@@ -99,9 +102,7 @@ minetest.register_chatcommand("sethome", {
 	func = function(name)
 		name = name or "" -- fallback to blank name if nil
 		local player = minetest.get_player_by_name(name)
-		if player and sethome.set(name, player:get_pos()) then
-			return true, S("Home set!")
-		end
-		return false, S("Player not found!")
+		if not player then return false, S("Player not found!") end
+		return sethome.set(name, player:get_pos())
 	end,
 })
